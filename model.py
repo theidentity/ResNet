@@ -14,7 +14,6 @@ class ImageClassifier(object):
 	def __init__(self):
 
 		self.img_rows,self.img_cols = 197,197
-		self.num_epochs = 2
 		self.batch_size = 32
 		self.seed = 42
 		self.input_shape = (self.img_rows,self.img_cols,3)
@@ -32,7 +31,7 @@ class ImageClassifier(object):
 
 	def get_model(self):
 
-		base_model = ResNet50(include_top=False,input_shape=self.input_shape)
+		base_model = ResNet50(include_top=False,input_shape=self.input_shape,weights=None)
 
 		x = base_model.output
 		x = Flatten()(x)
@@ -99,7 +98,7 @@ class ImageClassifier(object):
 		
 		return [early_stopping,checkpointer,tensorboard]
 
-	def train(self,lr=1e-4):
+	def train(self,lr=1e-4,num_epochs=2):
 
 		self.build_model(lr)
 
@@ -108,7 +107,7 @@ class ImageClassifier(object):
 
 		hist = self.model.fit_generator(
 			generator = train_generator,
-			epochs  = self.num_epochs,
+			epochs = num_epochs,
 			validation_data = validation_generator,
 			callbacks = self.get_callbacks(),
 			)
@@ -142,10 +141,9 @@ class ImageClassifier(object):
 		validation_generator = self.get_validation_generator(self.validation_img_path)
 
 		validation_steps = self.validation_steps[0]
-		print type(self.validation_steps)
 		
-		y_actual = np.empty((1,5))
-		y_pred = np.empty((1,5))
+		y_actual = np.empty((0,5))
+		y_pred = np.empty((0,5))
 
 		for i in range(validation_steps):
 			
@@ -155,16 +153,16 @@ class ImageClassifier(object):
 			pred = self.model.predict(X,
 				batch_size = self.batch_size,
 				verbose = 1)
-			y_pred = np.vstack([y_pred,y])
+			y_pred = np.vstack([y_pred,pred])
 
 		out = np.hstack([y_actual,y_pred])
 		if save:
-			np.save('tmp/save.npy',out)
+			np.save('tmp/'+self.name+'_.npy',out)
 
 		return out
 
-	def get_metrics(path):
-		pred = np.load('tmp/save.npy')
+	def get_metrics(self):
+		pred = np.load('tmp/'+self.name+'_.npy')
 		y_actual,y_pred = np.hsplit(pred,2)
 		y_actual = np.argmax(y_actual,axis=1)
 		y_pred = np.argmax(y_pred,axis=1)
@@ -181,9 +179,9 @@ class ImageClassifier(object):
 
 if __name__ == '__main__':
 	m1 = ImageClassifier()
-	# m1.train(lr=1e-4)
-	# m1.continue_training(lr=1e-5,num_epochs=1)
-	# m1.get_predictions(save=True)
+	m1.train(lr=1e-4,num_epochs=5)
+	# m1.continue_training(lr=1e-4,num_epochs=5)
+	m1.get_predictions(save=True)
 	m1.get_metrics()
 
 
